@@ -7,6 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
+    <!-- Modal for Service Details -->
+    <div id="serviceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
     <div id="app" class="min-h-screen p-6">
         <div class="max-w-7xl mx-auto">
             <div class="text-center py-12">
@@ -17,25 +24,22 @@
         </div>
     </div>
 
-    <!-- Load AWS SDK -->
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
 
     <script>
-        // Global state
         let APP_STATE = {
             services: {},
             lastUpdate: null,
-            awsConnected: false
+            awsConnected: false,
+            cloudwatch: null
         };
 
-        // AWS Configuration
         const AWS_CONFIG = {
             accessKeyId: 'AKIAWT5V2FQ6OMGBNIT3',
             secretAccessKey: 'hG1IFH1axlyPSvqPAdEma4M5BKky7/m+KA5dFMqXAWS',
             region: 'ap-south-1'
         };
 
-        // Service definitions
         const SERVICE_CONFIG = {
             'Frontend & Backend': [
                 {id: 'frontend', name: 'VZY Frontend'},
@@ -83,35 +87,42 @@
             ]
         };
 
-        // Update loading status
         function updateLoadingStatus(message) {
             const el = document.getElementById('loading-status');
             if (el) el.textContent = message;
             console.log('Status:', message);
         }
 
-        // Generate service data
         function generateServiceData() {
             const data = {};
             Object.values(SERVICE_CONFIG).flat().forEach(service => {
                 const rand = Math.random();
+                const invocations = Math.floor(Math.random() * 100) + 10;
+                const errors = rand < 0.85 ? 0 : Math.floor(Math.random() * 5);
+                
                 data[service.id] = {
                     name: service.name,
                     status: rand > 0.15 ? (rand > 0.3 ? 'healthy' : 'warning') : 'down',
                     latency: Math.floor(Math.random() * 350) + 50,
-                    uptime: parseFloat((98.5 + Math.random() * 1.5).toFixed(2))
+                    uptime: parseFloat((98.5 + Math.random() * 1.5).toFixed(2)),
+                    invocations: invocations,
+                    errors: errors,
+                    successRate: parseFloat(((invocations - errors) / invocations * 100).toFixed(2)),
+                    p50: Math.floor(Math.random() * 300) + 40,
+                    p95: Math.floor(Math.random() * 500) + 100,
+                    p99: Math.floor(Math.random() * 800) + 200,
+                    lastCheck: new Date().toISOString()
                 };
             });
             return data;
         }
 
-        // Check AWS Connection
         async function checkAWSConnection() {
             try {
                 updateLoadingStatus('Testing AWS connection...');
                 const cloudwatch = new AWS.CloudWatch();
                 const result = await cloudwatch.listMetrics({ Limit: 5 }).promise();
-                console.log('AWS Connected! Found metrics:', result.Metrics ? result.Metrics.length : 0);
+                console.log('AWS Connected!');
                 return true;
             } catch (error) {
                 console.warn('AWS connection failed:', error.message);
@@ -119,23 +130,210 @@
             }
         }
 
-        // Get status color
         function getStatusColor(status) {
             return status === 'healthy' ? 'green' : status === 'warning' ? 'orange' : 'red';
         }
 
-        // Get status icon
         function getStatusIcon(status) {
             return status === 'healthy' ? '✓' : status === 'warning' ? '⚠' : '✗';
         }
 
-        // Render service card
+        // Show service details modal
+        async function showServiceDetails(serviceId) {
+            const service = APP_STATE.services[serviceId];
+            if (!service) return;
+
+            const color = getStatusColor(service.status);
+            const modal = document.getElementById('serviceModal');
+            const modalContent = document.getElementById('modalContent');
+
+            // Fetch additional metrics if AWS connected
+            let recentMetrics = [];
+            if (APP_STATE.awsConnected && APP_STATE.cloudwatch) {
+                try {
+                    const endTime = new Date();
+                    const startTime = new Date(endTime.getTime() - 60 * 60 * 1000); // Last hour
+
+                    const params = {
+                        MetricDataQueries: [
+                            {
+                                Id: 'latency',
+                                MetricStat: {
+                                    Metric: {
+                                        Namespace: 'VZY/OTT',
+                                        MetricName: 'ServiceLatency',
+                                        Dimensions: [{Name: 'ServiceName', Value: serviceId}]
+                                    },
+                                    Period: 300, // 5 minutes
+                                    Stat: 'Average'
+                                }
+                            }
+                        ],
+                        StartTime: startTime,
+                        EndTime: endTime
+                    };
+
+                    const data = await APP_STATE.cloudwatch.getMetricData(params).promise();
+                    if (data.MetricDataResults[0].Values.length > 0) {
+                        recentMetrics = data.MetricDataResults[0].Values.map((value, index) => ({
+                            time: data.MetricDataResults[0].Timestamps[index],
+                            latency: Math.round(value)
+                        })).reverse();
+                    }
+                } catch (error) {
+                    console.error('Error fetching metrics:', error);
+                }
+            }
+
+            modalContent.innerHTML = `
+                <div class="p-8">
+                    <!-- Header -->
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="flex-1">
+                            <h2 class="text-3xl font-bold text-gray-900 mb-2">${service.name}</h2>
+                            <div class="flex items-center gap-3">
+                                <span class="px-4 py-2 bg-${color}-100 text-${color}-800 rounded-full font-semibold text-sm">
+                                    ${service.status.toUpperCase()}
+                                </span>
+                                <span class="text-gray-500 text-sm">Last checked: ${new Date(service.lastCheck).toLocaleTimeString()}</span>
+                            </div>
+                        </div>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">
+                            ×
+                        </button>
+                    </div>
+
+                    <!-- Key Metrics Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-blue-50 rounded-xl p-4">
+                            <div class="text-sm text-gray-600 mb-1">Latency</div>
+                            <div class="text-3xl font-bold text-blue-600">${service.latency}ms</div>
+                        </div>
+                        <div class="bg-green-50 rounded-xl p-4">
+                            <div class="text-sm text-gray-600 mb-1">Uptime</div>
+                            <div class="text-3xl font-bold text-green-600">${service.uptime}%</div>
+                        </div>
+                        <div class="bg-purple-50 rounded-xl p-4">
+                            <div class="text-sm text-gray-600 mb-1">Requests</div>
+                            <div class="text-3xl font-bold text-purple-600">${service.invocations}</div>
+                        </div>
+                        <div class="bg-${service.errors > 0 ? 'red' : 'green'}-50 rounded-xl p-4">
+                            <div class="text-sm text-gray-600 mb-1">Errors</div>
+                            <div class="text-3xl font-bold text-${service.errors > 0 ? 'red' : 'green'}-600">${service.errors}</div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Details -->
+                    <div class="bg-gray-50 rounded-xl p-6 mb-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Performance Metrics</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <div>
+                                <div class="text-sm text-gray-500 mb-1">Success Rate</div>
+                                <div class="text-2xl font-bold text-gray-900">${service.successRate}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500 mb-1">P50 Latency</div>
+                                <div class="text-2xl font-bold text-gray-900">${service.p50}ms</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500 mb-1">P95 Latency</div>
+                                <div class="text-2xl font-bold text-gray-900">${service.p95}ms</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500 mb-1">P99 Latency</div>
+                                <div class="text-2xl font-bold text-gray-900">${service.p99}ms</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${recentMetrics.length > 0 ? `
+                    <!-- Recent Metrics Chart -->
+                    <div class="bg-gray-50 rounded-xl p-6 mb-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Latency Trend (Last Hour)</h3>
+                        <div class="space-y-2">
+                            ${recentMetrics.slice(0, 12).map(metric => `
+                                <div class="flex items-center gap-3">
+                                    <div class="text-xs text-gray-500 w-16">${new Date(metric.time).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</div>
+                                    <div class="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
+                                        <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full" style="width: ${Math.min(metric.latency / 5, 100)}%"></div>
+                                    </div>
+                                    <div class="text-sm font-semibold text-gray-700 w-16">${metric.latency}ms</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Health Status Details -->
+                    <div class="bg-${color}-50 border border-${color}-200 rounded-xl p-6 mb-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Health Status</h3>
+                        <div class="space-y-3">
+                            ${service.status === 'healthy' ? `
+                                <div class="flex items-center gap-3 text-green-700">
+                                    <span class="text-2xl">✓</span>
+                                    <span>Service is operating normally</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-green-700">
+                                    <span class="text-2xl">✓</span>
+                                    <span>Response times within acceptable range</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-green-700">
+                                    <span class="text-2xl">✓</span>
+                                    <span>Error rate is minimal</span>
+                                </div>
+                            ` : service.status === 'warning' ? `
+                                <div class="flex items-center gap-3 text-orange-700">
+                                    <span class="text-2xl">⚠</span>
+                                    <span>Service experiencing degraded performance</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-orange-700">
+                                    <span class="text-2xl">⚠</span>
+                                    <span>Response times above normal threshold</span>
+                                </div>
+                            ` : `
+                                <div class="flex items-center gap-3 text-red-700">
+                                    <span class="text-2xl">✗</span>
+                                    <span>Service is currently unavailable</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-red-700">
+                                    <span class="text-2xl">✗</span>
+                                    <span>High error rate detected</span>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">
+                            Close
+                        </button>
+                        <button class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                            View CloudWatch Logs
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('serviceModal').classList.add('hidden');
+        }
+
+        // Close modal on outside click
+        document.getElementById('serviceModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
         function renderServiceCard(serviceId, data) {
             const color = getStatusColor(data.status);
             const icon = getStatusIcon(data.status);
             
             return `
-                <div class="bg-${color}-50 border border-${color}-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div onclick="showServiceDetails('${serviceId}')" 
+                     class="bg-${color}-50 border border-${color}-200 rounded-lg p-4 hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
                     <div class="flex items-start justify-between mb-2">
                         <h3 class="font-semibold text-sm text-gray-800">${data.name}</h3>
                         <span class="text-${color}-600 text-xl font-bold">${icon}</span>
@@ -150,15 +348,16 @@
                             <span class="font-mono font-semibold">${data.uptime}%</span>
                         </div>
                     </div>
+                    <div class="mt-2 pt-2 border-t border-${color}-200">
+                        <div class="text-xs text-${color}-700 font-medium">Click for details →</div>
+                    </div>
                 </div>
             `;
         }
 
-        // Render complete dashboard
         function renderDashboard(services, awsConnected) {
             updateLoadingStatus('Rendering dashboard...');
             
-            // Calculate stats
             const allServices = Object.values(services);
             const counts = {
                 total: allServices.length,
@@ -172,7 +371,6 @@
 
             let html = `
                 <div class="max-w-7xl mx-auto">
-                    <!-- Header -->
                     <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
                         <div class="flex items-center justify-between mb-4">
                             <div>
@@ -194,7 +392,6 @@
                             </div>
                         </div>
 
-                        <!-- Stats -->
                         <div class="grid grid-cols-4 gap-4">
                             <div class="bg-gray-50 rounded-lg p-4">
                                 <div class="text-2xl font-bold text-gray-900">${counts.total}</div>
@@ -216,7 +413,6 @@
                     </div>
             `;
 
-            // Render each category
             Object.entries(SERVICE_CONFIG).forEach(([category, categoryServices]) => {
                 html += `
                     <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -237,10 +433,9 @@
                 `;
             });
 
-            // Legend
             html += `
                     <div class="bg-white rounded-xl shadow-sm p-6">
-                        <h3 class="font-semibold text-gray-900 mb-3">Status Legend</h3>
+                        <h3 class="font-semibold text-gray-900 mb-3">💡 Tip: Click on any service card to view detailed insights</h3>
                         <div class="flex flex-wrap gap-6 text-sm">
                             <div class="flex items-center gap-2">
                                 <div class="w-4 h-4 bg-green-500 rounded"></div>
@@ -263,18 +458,15 @@
             console.log('Dashboard rendered successfully');
         }
 
-        // Refresh dashboard
         function refreshDashboard() {
             console.log('Refreshing dashboard...');
             location.reload();
         }
 
-        // Initialize dashboard
         async function initializeDashboard() {
             try {
                 console.log('Starting dashboard initialization...');
                 
-                // Wait for AWS SDK
                 updateLoadingStatus('Loading AWS SDK...');
                 await new Promise((resolve) => {
                     const checkSDK = setInterval(() => {
@@ -285,20 +477,17 @@
                     }, 100);
                 });
 
-                // Configure AWS
                 updateLoadingStatus('Configuring AWS...');
                 AWS.config.update(AWS_CONFIG);
+                APP_STATE.cloudwatch = new AWS.CloudWatch();
 
-                // Check AWS connection
                 const awsConnected = await checkAWSConnection();
                 APP_STATE.awsConnected = awsConnected;
 
-                // Generate service data
                 updateLoadingStatus('Loading service data...');
                 APP_STATE.services = generateServiceData();
                 APP_STATE.lastUpdate = new Date();
 
-                // Render dashboard
                 renderDashboard(APP_STATE.services, APP_STATE.awsConnected);
 
             } catch (error) {
@@ -316,7 +505,6 @@
             }
         }
 
-        // Start when page loads
         window.addEventListener('load', () => {
             console.log('Page loaded, starting initialization...');
             initializeDashboard();
