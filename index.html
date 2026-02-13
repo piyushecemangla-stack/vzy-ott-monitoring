@@ -40,6 +40,31 @@
             region: 'ap-south-1'
         };
 
+        // Map service IDs to CloudWatch Log Groups
+        const LOG_GROUP_MAPPING = {
+            'monitoring': '/aws/lambda/vzy-ott-monitor',
+            'dish-login': '/aws/lambda/vzy-ott-monitor',
+            'dish-login-generate-otp': '/aws/lambda/sso-be-proddish-generate-otp',
+            'dish-login-validate-otp': '/aws/lambda/sso-be-proddish-validateOtp',
+            'frontend': '/aws/lambda/frontend-service',
+            'sms-adaptor': '/aws/lambda/sms-adaptor'
+        };
+
+        // Function to open CloudWatch Logs
+        function openCloudWatchLogs(serviceId) {
+            const logGroup = LOG_GROUP_MAPPING[serviceId] || '/aws/lambda/vzy-ott-monitor';
+            const region = 'ap-south-1';
+            
+            // Encode log group name for URL
+            const encodedLogGroup = encodeURIComponent(logGroup).replace(/%2F/g, '$252F');
+            
+            // Build CloudWatch Logs URL
+            const logsUrl = `https://${region}.console.aws.amazon.com/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/${encodedLogGroup}`;
+            
+            // Open in new tab
+            window.open(logsUrl, '_blank');
+        }
+
         const SERVICE_CONFIG = {
             'Frontend & Backend': [
                 {id: 'frontend', name: 'VZY Frontend'},
@@ -308,8 +333,8 @@
                         <button onclick="closeModal()" class="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">
                             Close
                         </button>
-                        <button class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
-                            View CloudWatch Logs
+                        <button onclick="openCloudWatchLogs('${serviceId}')" class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                            📊 View CloudWatch Logs
                         </button>
                     </div>
                 </div>
@@ -386,9 +411,14 @@
                             </div>
                             <div class="text-right">
                                 <div class="text-sm text-gray-500 mb-2">Last updated: ${timeString}</div>
-                                <button onclick="refreshDashboard()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                    🔄 Refresh
-                                </button>
+                                <div class="flex gap-2 justify-end">
+                                    <button onclick="openCloudWatchLogs('monitoring')" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                                        📊 Monitoring Logs
+                                    </button>
+                                    <button onclick="refreshDashboard()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        🔄 Refresh
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
