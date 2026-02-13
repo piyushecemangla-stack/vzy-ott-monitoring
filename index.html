@@ -1,309 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VZY OTT Platform Monitor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1563.0.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VZY OTT Platform Monitor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.1563.0.min.js"></script>
 </head>
+
 <body class="bg-gray-50">
-    <div id="app" class="min-h-screen p-6">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center py-12">
-                <div class="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p class="text-gray-600 text-lg">Connecting to CloudWatch...</p>
-                <p class="text-gray-400 text-sm mt-2" id="status">Initializing...</p>
+<div id="app" class="min-h-screen p-6">
+<div class="max-w-7xl mx-auto">
+<div class="text-center py-12">
+<div class="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+<p class="text-gray-600 text-lg">Connecting to CloudWatch...</p>
+<p class="text-gray-400 text-sm mt-2" id="status">Initializing...</p>
+</div>
+</div>
+</div>
+
+<script>
+console.log('Dashboard starting...');
+
+/* ================= AWS CONFIG ================= */
+/* ⚠️ ROTATE THESE KEYS AFTER TESTING */
+AWS.config.update({
+    accessKeyId: 'AKIAWT5V2FQ6MKAHDFZB',
+    secretAccessKey: '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',
+    region: 'ap-south-1'
+});
+
+const cloudwatch = new AWS.CloudWatch();
+
+function updateStatus(msg) {
+    document.getElementById('status').textContent = msg;
+}
+
+/* ================= FETCH METRICS ================= */
+async function fetchMetrics() {
+    updateStatus('Fetching metrics from CloudWatch...');
+
+    const services = {
+        'dish-login-generate-otp': { name: 'Generate OTP' },
+        'dish-login-validate-otp': { name: 'Validate OTP' }
+    };
+
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - 30 * 60 * 1000);
+
+    const results = {};
+
+    for (const [serviceId, config] of Object.entries(services)) {
+        try {
+
+            // Health
+            const healthData = await cloudwatch.getMetricStatistics({
+                Namespace: 'VZY/OTT',
+                MetricName: 'ServiceHealth',
+                Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                StartTime: startTime,
+                EndTime: endTime,
+                Period: 300,
+                Statistics: ['Average']
+            }).promise();
+
+            // Latency
+            const latencyData = await cloudwatch.getMetricStatistics({
+                Namespace: 'VZY/OTT',
+                MetricName: 'ServiceLatency',
+                Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                StartTime: startTime,
+                EndTime: endTime,
+                Period: 300,
+                Statistics: ['Average']
+            }).promise();
+
+            // Errors
+            const errorData = await cloudwatch.getMetricStatistics({
+                Namespace: 'VZY/OTT',
+                MetricName: 'ErrorCount',
+                Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                StartTime: startTime,
+                EndTime: endTime,
+                Period: 300,
+                Statistics: ['Sum']
+            }).promise();
+
+            // ⭐ NEW — Requests
+            const requestData = await cloudwatch.getMetricStatistics({
+                Namespace: 'VZY/OTT',
+                MetricName: 'RequestCount',
+                Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                StartTime: startTime,
+                EndTime: endTime,
+                Period: 300,
+                Statistics: ['Sum']
+            }).promise();
+
+            const latest = (arr, key) =>
+                arr.Datapoints.length
+                    ? arr.Datapoints.sort((a,b)=>b.Timestamp-a.Timestamp)[0][key]
+                    : 0;
+
+            const healthValue = latest(healthData, 'Average');
+            const latencyValue = latest(latencyData, 'Average');
+            const errorValue = latest(errorData, 'Sum');
+            const requestValue = latest(requestData, 'Sum');
+
+            let status = 'unknown';
+            if (healthValue === 1) status = 'healthy';
+            else if (healthValue >= 0.5) status = 'warning';
+            else status = 'down';
+
+            results[serviceId] = {
+                name: config.name,
+                status,
+                health: healthValue,
+                latency: Math.round(latencyValue),
+                errors: errorValue,
+                requests: requestValue,
+                hasData: healthValue !== null
+            };
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    return results;
+}
+
+/* ================= LOG LINK ================= */
+function openLogs(serviceId) {
+    const logGroups = {
+        'dish-login-generate-otp': '/aws/lambda/sso-be-proddish-generate-otp',
+        'dish-login-validate-otp': '/aws/lambda/sso-be-proddish-validateOtp'
+    };
+
+    const encoded = encodeURIComponent(logGroups[serviceId]).replace(/%2F/g,'$252F');
+    window.open(
+        `https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/${encoded}`,
+        '_blank'
+    );
+}
+
+/* ================= RENDER ================= */
+function render(services) {
+
+    const now = new Date().toLocaleTimeString();
+
+    document.getElementById('app').innerHTML = `
+    <div class="max-w-7xl mx-auto">
+
+        <!-- HEADER -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h1 class="text-3xl font-bold">📺 VZY OTT Platform Monitor</h1>
+            <div class="text-sm text-gray-500 mt-2">Last updated: ${now}</div>
+        </div>
+
+        <!-- LOGIN SERVICE -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">🔐 Login Service</h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 border-b">
+                            <th class="p-3 text-left">Metric</th>
+                            <th class="p-3 text-center">Generate OTP</th>
+                            <th class="p-3 text-center">Validate OTP</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="p-3 font-medium">Requests</td>
+                            <td class="p-3 text-center font-mono">
+                                ${services['dish-login-generate-otp']?.requests || 0}
+                            </td>
+                            <td class="p-3 text-center font-mono">
+                                ${services['dish-login-validate-otp']?.requests || 0}
+                            </td>
+                        </tr>
+
+                        <tr class="border-b">
+                            <td class="p-3 font-medium">Latency</td>
+                            <td class="p-3 text-center font-mono">
+                                ${services['dish-login-generate-otp']?.latency || 0} ms
+                            </td>
+                            <td class="p-3 text-center font-mono">
+                                ${services['dish-login-validate-otp']?.latency || 0} ms
+                            </td>
+                        </tr>
+
+                        <tr class="border-b">
+                            <td class="p-3 font-medium">Health</td>
+                            <td class="p-3 text-center font-mono">
+                                ${services['dish-login-generate-otp']?.health?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td class="p-3 text-center font-mono">
+                                ${services['dish-login-validate-otp']?.health?.toFixed(1) || 'N/A'}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td class="p-3 font-medium">Errors</td>
+                            <td class="p-3 text-center font-mono text-red-600">
+                                ${services['dish-login-generate-otp']?.errors || 0}
+                            </td>
+                            <td class="p-3 text-center font-mono text-red-600">
+                                ${services['dish-login-validate-otp']?.errors || 0}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 flex gap-3">
+                <button onclick="openLogs('dish-login-generate-otp')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                    Generate OTP Logs
+                </button>
+
+                <button onclick="openLogs('dish-login-validate-otp')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">
+                    Validate OTP Logs
+                </button>
             </div>
         </div>
+
     </div>
+    `;
+}
 
-    <script>
-        console.log('Dashboard starting...');
-        
-        // AWS Configuration
-        AWS.config.update({
-            accessKeyId: 'AKIAWT5V2FQ6MKAHDFZB',
-            secretAccessKey: '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',
-            region: 'ap-south-1'
-        });
+/* ================= INIT ================= */
+async function init() {
+    try {
+        updateStatus('Testing AWS connection...');
+        await cloudwatch.listMetrics({ Namespace:'VZY/OTT' }).promise();
 
-        const cloudwatch = new AWS.CloudWatch();
-        
-        function updateStatus(msg) {
-            document.getElementById('status').textContent = msg;
-            console.log(msg);
-        }
+        const services = await fetchMetrics();
+        render(services);
 
-        // Fetch real metrics from CloudWatch
-        async function fetchMetrics() {
-            updateStatus('Fetching metrics from CloudWatch...');
-            
-            const services = {
-                'dish-login-generate-otp': { name: 'Generate OTP' },
-                'dish-login-validate-otp': { name: 'Validate OTP' }
-            };
-            
-            const endTime = new Date();
-            const startTime = new Date(endTime.getTime() - 30 * 60 * 1000); // Last 30 min
-            
-            const results = {};
-            
-            for (const [serviceId, config] of Object.entries(services)) {
-                try {
-                    // Fetch health metric
-                    const healthParams = {
-                        Namespace: 'VZY/OTT',
-                        MetricName: 'ServiceHealth',
-                        Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
-                        StartTime: startTime,
-                        EndTime: endTime,
-                        Period: 300,
-                        Statistics: ['Average']
-                    };
-                    
-                    const healthData = await cloudwatch.getMetricStatistics(healthParams).promise();
-                    
-                    // Fetch latency metric
-                    const latencyParams = {
-                        Namespace: 'VZY/OTT',
-                        MetricName: 'ServiceLatency',
-                        Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
-                        StartTime: startTime,
-                        EndTime: endTime,
-                        Period: 300,
-                        Statistics: ['Average']
-                    };
-                    
-                    const latencyData = await cloudwatch.getMetricStatistics(latencyParams).promise();
-                    
-                    // Fetch error count
-                    const errorParams = {
-                        Namespace: 'VZY/OTT',
-                        MetricName: 'ErrorCount',
-                        Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
-                        StartTime: startTime,
-                        EndTime: endTime,
-                        Period: 300,
-                        Statistics: ['Sum']
-                    };
-                    
-                    const errorData = await cloudwatch.getMetricStatistics(errorParams).promise();
-                    
-                    // Get latest values
-                    const healthValue = healthData.Datapoints.length > 0 
-                        ? healthData.Datapoints.sort((a, b) => b.Timestamp - a.Timestamp)[0].Average
-                        : null;
-                    
-                    const latencyValue = latencyData.Datapoints.length > 0
-                        ? latencyData.Datapoints.sort((a, b) => b.Timestamp - a.Timestamp)[0].Average
-                        : 0;
-                    
-                    const errorValue = errorData.Datapoints.length > 0
-                        ? errorData.Datapoints.sort((a, b) => b.Timestamp - a.Timestamp)[0].Sum
-                        : 0;
-                    
-                    let status = 'unknown';
-                    if (healthValue !== null) {
-                        if (healthValue === 1) status = 'healthy';
-                        else if (healthValue >= 0.5) status = 'warning';
-                        else status = 'down';
-                    }
-                    
-                    results[serviceId] = {
-                        name: config.name,
-                        status: status,
-                        health: healthValue,
-                        latency: Math.round(latencyValue),
-                        errors: errorValue,
-                        uptime: 99.5,
-                        hasData: healthValue !== null
-                    };
-                    
-                    console.log(`${serviceId}: ${status}, ${latencyValue}ms, ${errorValue} errors`);
-                    
-                } catch (error) {
-                    console.error(`Error fetching ${serviceId}:`, error);
-                    results[serviceId] = {
-                        name: config.name,
-                        status: 'unknown',
-                        latency: 0,
-                        errors: 0,
-                        uptime: 0,
-                        hasData: false
-                    };
-                }
-            }
-            
-            return results;
-        }
+    } catch (e) {
+        document.getElementById('app').innerHTML =
+            '<div class="text-red-600 text-center mt-10">Connection Error: '+e.message+'</div>';
+    }
+}
 
-        function openLogs(serviceId) {
-            const logGroups = {
-                'dish-login-generate-otp': '/aws/lambda/sso-be-proddish-generate-otp',
-                'dish-login-validate-otp': '/aws/lambda/sso-be-proddish-validateOtp',
-                'monitoring': '/aws/lambda/vzy-ott-monitor'
-            };
-            
-            const logGroup = logGroups[serviceId] || logGroups['monitoring'];
-            const encoded = encodeURIComponent(logGroup).replace(/%2F/g, '$252F');
-            const url = `https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/${encoded}`;
-            window.open(url, '_blank');
-        }
-
-        function render(services) {
-            const hasData = Object.values(services).some(s => s.hasData);
-            const healthyCount = Object.values(services).filter(s => s.status === 'healthy').length;
-            const warningCount = Object.values(services).filter(s => s.status === 'warning').length;
-            const downCount = Object.values(services).filter(s => s.status === 'down').length;
-            
-            const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            
-            document.getElementById('app').innerHTML = `
-                <div class="max-w-7xl mx-auto">
-                    <!-- Header -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <h1 class="text-3xl font-bold text-gray-900">📺 VZY OTT Platform Monitor</h1>
-                                <p class="text-gray-500 mt-1">Real-time system health • Region: ap-south-1</p>
-                                ${hasData 
-                                    ? '<p class="text-green-600 text-sm mt-2 font-semibold">✓ Connected to AWS CloudWatch - Showing REAL data</p>'
-                                    : '<p class="text-yellow-600 text-sm mt-2">⚠ No metrics found - Check monitoring is running</p>'
-                                }
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm text-gray-500 mb-2">Last updated: ${timeString}</div>
-                                <div class="flex gap-2">
-                                    <button onclick="openLogs('monitoring')" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">
-                                        📊 Monitoring Logs
-                                    </button>
-                                    <button onclick="location.reload()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                        🔄 Refresh
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Stats -->
-                        <div class="grid grid-cols-4 gap-4">
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                <div class="text-2xl font-bold">${Object.keys(services).length}</div>
-                                <div class="text-sm text-gray-600">Total Services</div>
-                            </div>
-                            <div class="bg-green-50 rounded-lg p-4">
-                                <div class="text-2xl font-bold text-green-600">${healthyCount}</div>
-                                <div class="text-sm text-gray-600">Healthy</div>
-                            </div>
-                            <div class="bg-orange-50 rounded-lg p-4">
-                                <div class="text-2xl font-bold text-orange-600">${warningCount}</div>
-                                <div class="text-sm text-gray-600">Warning</div>
-                            </div>
-                            <div class="bg-red-50 rounded-lg p-4">
-                                <div class="text-2xl font-bold text-red-600">${downCount}</div>
-                                <div class="text-sm text-gray-600">Down</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Dish Backend Services -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
-                        <h2 class="text-xl font-bold text-gray-900 mb-4">Dish Backend - Login Services</h2>
-                        <div class="grid grid-cols-2 gap-4">
-                            ${Object.entries(services).map(([id, service]) => {
-                                const color = service.status === 'healthy' ? 'green' : 
-                                            service.status === 'warning' ? 'orange' : 
-                                            service.status === 'down' ? 'red' : 'gray';
-                                const icon = service.status === 'healthy' ? '✓' : 
-                                           service.status === 'warning' ? '⚠' : 
-                                           service.status === 'down' ? '✗' : '?';
-                                
-                                return `
-                                    <div class="bg-${color}-50 border-2 border-${color}-200 rounded-lg p-6 hover:shadow-lg transition cursor-pointer"
-                                         onclick="openLogs('${id}')">
-                                        <div class="flex items-start justify-between mb-3">
-                                            <h3 class="font-bold text-lg text-gray-800">${service.name}</h3>
-                                            <span class="text-${color}-600 text-3xl font-bold">${icon}</span>
-                                        </div>
-                                        <div class="space-y-2 text-sm text-gray-700">
-                                            <div class="flex justify-between">
-                                                <span class="font-medium">Latency:</span>
-                                                <span class="font-mono font-bold text-${color}-700">${service.latency}ms</span>
-                                            </div>
-                                            <div class="flex justify-between">
-                                                <span class="font-medium">Health:</span>
-                                                <span class="font-mono font-bold text-${color}-700">${service.health !== null ? service.health.toFixed(1) : 'N/A'}</span>
-                                            </div>
-                                            <div class="flex justify-between">
-                                                <span class="font-medium">Errors:</span>
-                                                <span class="font-mono font-bold text-${color}-700">${service.errors}</span>
-                                            </div>
-                                        </div>
-                                        <div class="mt-3 pt-3 border-t border-${color}-200 text-${color}-700 text-xs font-semibold">
-                                            Click to view CloudWatch logs →
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Info -->
-                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                        <h3 class="font-semibold text-blue-900 mb-2">💡 Dashboard Status</h3>
-                        <div class="text-sm text-blue-800 space-y-1">
-                            <p>✓ CloudWatch Namespace: VZY/OTT</p>
-                            <p>✓ Auto-refresh: Manual (click Refresh button)</p>
-                            <p>✓ Monitoring Lambda: Running every 5 minutes</p>
-                            ${hasData 
-                                ? '<p class="font-bold text-green-700">✓ Real-time data from CloudWatch</p>'
-                                : '<p class="font-bold text-yellow-700">⚠ Waiting for metrics (may take 5-10 minutes)</p>'
-                            }
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Initialize
-        async function init() {
-            try {
-                updateStatus('Testing AWS connection...');
-                
-                // Test connection
-                const testParams = {
-                    Namespace: 'VZY/OTT',
-                    MetricName: 'ServiceHealth'
-                };
-                
-                await cloudwatch.listMetrics(testParams).promise();
-                console.log('✓ AWS connection successful');
-                
-                updateStatus('Fetching service metrics...');
-                const services = await fetchMetrics();
-                
-                updateStatus('Rendering dashboard...');
-                render(services);
-                
-                console.log('✓ Dashboard loaded');
-                
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('app').innerHTML = `
-                    <div class="max-w-2xl mx-auto mt-12 bg-red-50 border border-red-200 rounded-xl p-8">
-                        <h2 class="text-2xl font-bold text-red-900 mb-4">⚠ Connection Error</h2>
-                        <p class="text-red-800 mb-4">${error.message}</p>
-                        <button onclick="location.reload()" class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                            Retry
-                        </button>
-                    </div>
-                `;
-            }
-        }
-
-        // Start when page loads
-        window.addEventListener('load', init);
-    </script>
+window.addEventListener('load', init);
+</script>
 </body>
 </html>
