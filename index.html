@@ -96,25 +96,30 @@
             
             for (const [serviceId, config] of Object.entries(SERVICES)) {
                 try {
+                    const dimensions = [
+                        { Name: 'ServiceName', Value: serviceId },
+                        { Name: 'Category', Value: config.category }
+                    ];
+                    
                     const [healthData, latencyData, errorData, invocationData] = await Promise.all([
                         cloudwatch.getMetricStatistics({
                             Namespace: 'VZY/OTT', MetricName: 'ServiceHealth',
-                            Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                            Dimensions: dimensions,
                             StartTime: startTime, EndTime: endTime, Period: 300, Statistics: ['Average']
                         }).promise(),
                         cloudwatch.getMetricStatistics({
                             Namespace: 'VZY/OTT', MetricName: 'ServiceLatency',
-                            Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                            Dimensions: dimensions,
                             StartTime: startTime, EndTime: endTime, Period: 300, Statistics: ['Average', 'Maximum']
                         }).promise(),
                         cloudwatch.getMetricStatistics({
                             Namespace: 'VZY/OTT', MetricName: 'ErrorCount',
-                            Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                            Dimensions: dimensions,
                             StartTime: startTime, EndTime: endTime, Period: 300, Statistics: ['Sum']
                         }).promise(),
                         cloudwatch.getMetricStatistics({
                             Namespace: 'VZY/OTT', MetricName: 'Invocations',
-                            Dimensions: [{ Name: 'ServiceName', Value: serviceId }],
+                            Dimensions: dimensions,
                             StartTime: startTime, EndTime: endTime, Period: 300, Statistics: ['Sum']
                         }).promise()
                     ]);
