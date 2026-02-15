@@ -4,576 +4,578 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VZY OTT Platform Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1563.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Sora', -apple-system, system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+        
+        .stat-number { font-family: 'JetBrains Mono', monospace; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .block-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .block-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+            opacity: 0.8;
+        }
+
+        .block-dish::before { background: linear-gradient(180deg, #3b82f6, #06b6d4); }
+        .block-partners::before { background: linear-gradient(180deg, #a855f7, #ec4899); }
+        
+        .service-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .service-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .service-card:hover::after { opacity: 1; }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-healthy { background: #10b981; box-shadow: 0 0 12px #10b981; }
+        .status-warning { background: #f59e0b; box-shadow: 0 0 12px #f59e0b; }
+        .status-down { background: #ef4444; box-shadow: 0 0 12px #ef4444; }
+        
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in { animation: slideIn 0.6s ease-out; }
+        
+        .date-picker {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px 16px;
+            color: #f1f5f9;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s;
+        }
+        
+        .date-picker:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn {
+            border: none;
+            padding: 12px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.5);
+        }
+
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-dish {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .badge-partners {
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #c084fc;
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Modal for Service Details with Embedded Logs -->
-    <div id="serviceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+<body>
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="glass-card max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8">
             <div id="modalContent"></div>
         </div>
     </div>
 
-    <div id="app" class="min-h-screen p-6">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center py-12">
-                <div class="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p class="text-gray-600 text-lg">Connecting to CloudWatch...</p>
-                <p class="text-gray-400 text-sm mt-2" id="status">Initializing...</p>
+    <div class="min-h-screen p-6">
+        <div class="max-w-[1600px] mx-auto">
+            <!-- Header -->
+            <div class="glass-card p-8 mb-8 slide-in">
+                <div class="flex items-start justify-between mb-6">
+                    <div>
+                        <h1 class="text-5xl font-800 mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                            VZY OTT Monitor
+                        </h1>
+                        <p class="text-slate-400 text-lg">Real-time performance analytics · Region ap-south-1</p>
+                        <div class="flex items-center gap-2 mt-3">
+                            <div class="status-dot status-healthy pulse"></div>
+                            <span class="text-emerald-400 text-sm font-600">Connected to CloudWatch</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="stat-number text-slate-400 text-sm mb-2">Last updated</div>
+                        <div class="stat-number text-2xl font-700" id="lastUpdate">--:--:--</div>
+                    </div>
+                </div>
+
+                <!-- Date Range Controls -->
+                <div class="grid grid-cols-5 gap-4 mt-6">
+                    <div>
+                        <label class="text-slate-400 text-sm mb-2 block">Start Date</label>
+                        <input type="date" id="startDate" class="date-picker w-full">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 text-sm mb-2 block">End Date</label>
+                        <input type="date" id="endDate" class="date-picker w-full">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 text-sm mb-2 block">Quick Select</label>
+                        <select id="quickSelect" class="date-picker w-full" onchange="applyQuickSelect()">
+                            <option value="24h" selected>Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="14d">Last 14 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="loadData()" class="btn btn-primary w-full text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="exportCSV()" class="btn btn-success w-full text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Export CSV
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="glass-card p-6 slide-in" style="animation-delay: 0.1s">
+                    <div class="text-slate-400 text-sm mb-2">Total Requests</div>
+                    <div class="stat-number text-4xl font-700" id="totalRequests">--</div>
+                    <div class="text-slate-500 text-xs mt-2 stat-number" id="dateRange">Loading...</div>
+                </div>
+                <div class="glass-card p-6 slide-in" style="animation-delay: 0.2s">
+                    <div class="text-slate-400 text-sm mb-2">Avg Latency</div>
+                    <div class="stat-number text-4xl font-700 text-emerald-400" id="avgLatency">--ms</div>
+                    <div class="text-slate-500 text-xs mt-2">Target: &lt;500ms</div>
+                </div>
+                <div class="glass-card p-6 slide-in" style="animation-delay: 0.3s">
+                    <div class="text-slate-400 text-sm mb-2">Total Errors</div>
+                    <div class="stat-number text-4xl font-700 text-red-400" id="totalErrors">--</div>
+                    <div class="stat-number text-slate-500 text-xs mt-2">Rate: <span id="errorRate">--%</span></div>
+                </div>
+                <div class="glass-card p-6 slide-in" style="animation-delay: 0.4s">
+                    <div class="text-slate-400 text-sm mb-2">System Health</div>
+                    <div class="text-4xl font-700">
+                        <span id="healthyCount" class="text-emerald-400">--</span>
+                        <span class="text-slate-600 text-2xl">/</span>
+                        <span id="totalServices" class="text-slate-400">7</span>
+                    </div>
+                    <div class="text-slate-500 text-xs mt-2">Services Operational</div>
+                </div>
+            </div>
+
+            <!-- Services Container -->
+            <div id="servicesContainer"></div>
         </div>
     </div>
 
     <script>
-        console.log('VZY OTT Dashboard - 24 Hour Metrics');
-        
         AWS.config.update({
             accessKeyId: 'AKIAWT5V2FQ6MKAHDFZB',
             secretAccessKey: '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',
             region: 'ap-south-1'
         });
 
-        const cloudwatch = new AWS.CloudWatch();
-        const cloudwatchLogs = new AWS.CloudWatchLogs();
-        
-        // Industry-standard thresholds
-        const THRESHOLDS = {
-            'Dish Backend': {
-                latencyWarning: 500,
-                latencyCritical: 1000,
-                errorRateWarning: 0.5,
-                errorRateCritical: 1.0
-            },
-            'Content Partners': {
-                latencyWarning: 2000,
-                latencyCritical: 5000,
-                errorRateWarning: 1.0,
-                errorRateCritical: 5.0
-            }
+        const logs = new AWS.CloudWatchLogs();
+        const SERVICES = {
+            'generate-otp': { name: 'Generate OTP', logGroup: '/aws/lambda/sso-be-proddish-generate-otp', category: 'Dish Backend', threshold: 500 },
+            'validateOtp': { name: 'Validate OTP', logGroup: '/aws/lambda/sso-be-proddish-validateOtp', category: 'Dish Backend', threshold: 500 },
+            'getUserInfo': { name: 'Get User Info', logGroup: '/aws/lambda/sso-be-proddish-getUserInfo', category: 'Dish Backend', threshold: 500 },
+            'zee5': { name: 'Zee5', logGroup: '/aws/lambda/sso-be-proddish-zee5', category: 'Content Partners', threshold: 2000 },
+            'sunNext': { name: 'Sun Nxt', logGroup: '/aws/lambda/sso-be-proddish-sunNext', category: 'Content Partners', threshold: 2000 },
+            'sonyLiv': { name: 'Sony Liv', logGroup: '/aws/lambda/sso-be-proddish-sonyLiv', category: 'Content Partners', threshold: 2000 },
+            'jiohotstar': { name: 'Jio Hotstar', logGroup: '/aws/lambda/sso-be-proddish-jiohotstar', category: 'Content Partners', threshold: 2000 }
         };
 
-        const SERVICES = {
-            'dish-login-generate-otp': {
-                name: 'Generate OTP',
-                category: 'Dish Backend',
-                logGroup: '/aws/lambda/sso-be-proddish-generate-otp'
-            },
-            'dish-login-validate-otp': {
-                name: 'Validate OTP',
-                category: 'Dish Backend',
-                logGroup: '/aws/lambda/sso-be-proddish-validateOtp'
-            },
-            'dish-getuserinfo': {
-                name: 'Get User Info',
-                category: 'Dish Backend',
-                logGroup: '/aws/lambda/sso-be-proddish-getUserInfo'
-            },
-            'partner-zee5': {
-                name: 'Zee5',
-                category: 'Content Partners',
-                logGroup: '/aws/lambda/sso-be-proddish-zee5'
-            },
-            'partner-sunnxt': {
-                name: 'Sun Nxt',
-                category: 'Content Partners',
-                logGroup: '/aws/lambda/sso-be-proddish-sunNext'
-            },
-            'partner-sonyliv': {
-                name: 'Sony Liv',
-                category: 'Content Partners',
-                logGroup: '/aws/lambda/sso-be-proddish-sonyLiv'
-            },
-            'partner-jiohotstar': {
-                name: 'Jio Hotstar',
-                category: 'Content Partners',
-                logGroup: '/aws/lambda/sso-be-proddish-jiohotstar'
+        let currentData = null;
+
+        function applyQuickSelect() {
+            const value = document.getElementById('quickSelect').value;
+            const end = new Date();
+            let start = new Date();
+
+            switch(value) {
+                case '24h': start.setHours(start.getHours() - 24); break;
+                case '7d': start.setDate(start.getDate() - 7); break;
+                case '14d': start.setDate(start.getDate() - 14); break;
+                case '30d': start.setDate(start.getDate() - 30); break;
             }
-        };
-        
-        function updateStatus(msg) {
-            const el = document.getElementById('status');
-            if (el) el.textContent = msg;
-            console.log(msg);
+
+            document.getElementById('startDate').value = start.toISOString().split('T')[0];
+            document.getElementById('endDate').value = end.toISOString().split('T')[0];
         }
 
-        async function fetch24HourMetrics() {
-            updateStatus('Fetching 24-hour metrics...');
+        async function loadData() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
             
-            const endTime = new Date();
-            const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours
+            try {
+                const data = await fetchData(start, end);
+                currentData = data;
+                renderDashboard(data, start, end);
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function fetchData(startDate, endDate) {
+            const start = new Date(startDate).getTime();
+            const end = new Date(endDate + 'T23:59:59').getTime();
             const results = {};
-            
-            for (const [serviceId, config] of Object.entries(SERVICES)) {
+
+            for (const [id, config] of Object.entries(SERVICES)) {
                 try {
-                    const dimensions = [
-                        { Name: 'ServiceName', Value: serviceId },
-                        { Name: 'Category', Value: config.category }
-                    ];
-                    
-                    // Fetch all metrics for 24 hours
-                    const [latencyData, invocationData, errorData] = await Promise.all([
-                        cloudwatch.getMetricStatistics({
-                            Namespace: 'VZY/OTT',
-                            MetricName: 'ServiceLatency',
-                            Dimensions: dimensions,
-                            StartTime: startTime,
-                            EndTime: endTime,
-                            Period: 300, // 5-minute intervals
-                            Statistics: ['Average', 'Minimum', 'Maximum']
-                        }).promise(),
-                        cloudwatch.getMetricStatistics({
-                            Namespace: 'VZY/OTT',
-                            MetricName: 'Invocations',
-                            Dimensions: dimensions,
-                            StartTime: startTime,
-                            EndTime: endTime,
-                            Period: 300,
-                            Statistics: ['Sum']
-                        }).promise(),
-                        cloudwatch.getMetricStatistics({
-                            Namespace: 'VZY/OTT',
-                            MetricName: 'ErrorCount',
-                            Dimensions: dimensions,
-                            StartTime: startTime,
-                            EndTime: endTime,
-                            Period: 300,
-                            Statistics: ['Sum']
-                        }).promise()
-                    ]);
-                    
-                    // Calculate metrics
-                    const latencyPoints = latencyData.Datapoints.sort((a, b) => b.Timestamp - a.Timestamp);
-                    const invocationPoints = invocationData.Datapoints;
-                    const errorPoints = errorData.Datapoints;
-                    
-                    // Current (latest)
-                    const currentLatency = latencyPoints.length > 0 ? Math.round(latencyPoints[0].Average) : 0;
-                    
-                    // Min/Max across 24 hours
-                    const minLatency = latencyPoints.length > 0 ? Math.round(Math.min(...latencyPoints.map(p => p.Minimum))) : 0;
-                    const maxLatency = latencyPoints.length > 0 ? Math.round(Math.max(...latencyPoints.map(p => p.Maximum))) : 0;
-                    
-                    // Total requests and errors for 24 hours
-                    const totalRequests = invocationPoints.reduce((sum, p) => sum + p.Sum, 0);
-                    const totalErrors = errorPoints.reduce((sum, p) => sum + p.Sum, 0);
-                    const errorRate = totalRequests > 0 ? (totalErrors / totalRequests * 100) : 0;
-                    
-                    // Current 5-minute window
-                    const currentRequests = latencyPoints.length > 0 ? invocationPoints.find(p => 
-                        Math.abs(p.Timestamp - latencyPoints[0].Timestamp) < 300000
-                    )?.Sum || 0 : 0;
-                    
-                    // Calculate status based on thresholds
-                    const threshold = THRESHOLDS[config.category];
-                    let status = 'healthy';
-                    
-                    if (currentLatency > threshold.latencyCritical || errorRate > threshold.errorRateCritical) {
-                        status = 'down';
-                    } else if (currentLatency > threshold.latencyWarning || errorRate > threshold.errorRateWarning) {
-                        status = 'warning';
-                    } else if (totalRequests === 0) {
-                        status = 'unknown';
-                    }
-                    
-                    results[serviceId] = {
+                    const events = await logs.filterLogEvents({
+                        logGroupName: config.logGroup,
+                        startTime: start,
+                        endTime: end,
+                        filterPattern: 'REPORT'
+                    }).promise();
+
+                    const reports = events.events || [];
+                    let invocations = 0, totalDuration = 0, latencies = [];
+
+                    reports.forEach(event => {
+                        invocations++;
+                        const match = event.message.match(/Duration: ([\d.]+) ms/);
+                        if (match) {
+                            const latency = parseFloat(match[1]);
+                            totalDuration += latency;
+                            latencies.push(latency);
+                        }
+                    });
+
+                    results[id] = {
                         name: config.name,
                         category: config.category,
-                        logGroup: config.logGroup,
-                        status,
-                        latency: {
-                            current: currentLatency,
-                            min: minLatency,
-                            max: maxLatency
-                        },
-                        requests: {
-                            current: currentRequests,
-                            total24h: totalRequests
-                        },
-                        errors: {
-                            total24h: totalErrors,
-                            rate: errorRate.toFixed(2)
-                        },
-                        thresholds: threshold,
-                        hasData: latencyPoints.length > 0
+                        threshold: config.threshold,
+                        invocations,
+                        avgLatency: invocations > 0 ? Math.round(totalDuration / invocations) : 0,
+                        minLatency: latencies.length > 0 ? Math.round(Math.min(...latencies)) : 0,
+                        maxLatency: latencies.length > 0 ? Math.round(Math.max(...latencies)) : 0,
+                        errors: 0
                     };
-                    
                 } catch (error) {
-                    console.error(`Error fetching ${serviceId}:`, error);
-                    results[serviceId] = {
-                        name: config.name,
-                        category: config.category,
-                        logGroup: config.logGroup,
-                        status: 'unknown',
-                        latency: { current: 0, min: 0, max: 0 },
-                        requests: { current: 0, total24h: 0 },
-                        errors: { total24h: 0, rate: 0 },
-                        thresholds: THRESHOLDS[config.category],
-                        hasData: false
-                    };
+                    results[id] = { name: config.name, category: config.category, threshold: config.threshold, invocations: 0, avgLatency: 0, minLatency: 0, maxLatency: 0, errors: 0 };
                 }
             }
-            
+
             return results;
         }
 
-        async function fetchLogs(logGroup, limit = 20) {
-            try {
-                const streams = await cloudwatchLogs.describeLogStreams({
-                    logGroupName: logGroup,
-                    orderBy: 'LastEventTime',
-                    descending: true,
-                    limit: 3
-                }).promise();
+        function renderDashboard(data, start, end) {
+            // Summary
+            let totalReq = 0, totalLat = 0, totalErr = 0, count = 0, healthy = 0;
+            Object.values(data).forEach(s => {
+                totalReq += s.invocations;
+                if (s.invocations > 0) { totalLat += s.avgLatency; count++; }
+                totalErr += s.errors;
+                if (s.avgLatency < s.threshold && s.errors === 0) healthy++;
+            });
 
-                if (!streams.logStreams || streams.logStreams.length === 0) {
-                    return '<div class="text-gray-500 italic p-4">No recent log streams found</div>';
-                }
+            document.getElementById('totalRequests').textContent = totalReq.toLocaleString();
+            document.getElementById('avgLatency').textContent = count > 0 ? Math.round(totalLat / count) + 'ms' : '--ms';
+            document.getElementById('totalErrors').textContent = totalErr;
+            document.getElementById('errorRate').textContent = totalReq > 0 ? ((totalErr / totalReq) * 100).toFixed(2) + '%' : '--%';
+            document.getElementById('healthyCount').textContent = healthy;
+            document.getElementById('dateRange').textContent = `${start} to ${end}`;
 
-                let allLogs = [];
-                for (const stream of streams.logStreams.slice(0, 2)) {
-                    try {
-                        const events = await cloudwatchLogs.getLogEvents({
-                            logGroupName: logGroup,
-                            logStreamName: stream.logStreamName,
-                            limit: limit,
-                            startFromHead: false
-                        }).promise();
-                        allLogs = allLogs.concat(events.events || []);
-                    } catch (e) {}
-                }
+            // Services by category
+            const backend = Object.entries(data).filter(([,s]) => s.category === 'Dish Backend');
+            const partners = Object.entries(data).filter(([,s]) => s.category === 'Content Partners');
 
-                allLogs.sort((a, b) => b.timestamp - a.timestamp);
-                allLogs = allLogs.slice(0, limit);
+            const backendHealthy = backend.filter(([,s]) => s.avgLatency < s.threshold && s.errors === 0).length;
+            const partnersHealthy = partners.filter(([,s]) => s.avgLatency < s.threshold && s.errors === 0).length;
+            const backendTotal = backend.reduce((sum, [,s]) => sum + s.invocations, 0);
+            const partnersTotal = partners.reduce((sum, [,s]) => sum + s.invocations, 0);
 
-                if (allLogs.length === 0) {
-                    return '<div class="text-gray-500 italic p-4">No recent log events</div>';
-                }
-
-                let html = '<div class="space-y-1">';
-                allLogs.forEach(event => {
-                    const time = new Date(event.timestamp).toLocaleTimeString();
-                    const msg = event.message.trim();
-                    const isError = msg.includes('ERROR');
-                    const isReport = msg.includes('REPORT');
-                    const isStart = msg.includes('START');
-                    
-                    let color = 'text-gray-700';
-                    if (isError) color = 'text-red-600';
-                    else if (isReport) color = 'text-blue-600';
-                    else if (isStart) color = 'text-green-600';
-
-                    html += `<div class="font-mono text-xs ${color} bg-gray-50 p-2 rounded border-l-2 ${isError ? 'border-red-500' : 'border-gray-300'}">
-                        <span class="text-gray-500">${time}</span> ${msg.substring(0, 200)}
-                    </div>`;
-                });
-                html += '</div>';
-                return html;
-            } catch (error) {
-                return `<div class="text-red-500 p-4">Error loading logs: ${error.message}</div>`;
-            }
-        }
-
-        async function showDetails(serviceId) {
-            const service = window.allServices[serviceId];
-            if (!service) return;
-
-            const color = service.status === 'healthy' ? 'green' : service.status === 'warning' ? 'orange' : 'gray';
-            const threshold = service.thresholds;
-            
-            document.getElementById('modalContent').innerHTML = `
-                <div class="p-8">
-                    <div class="flex items-start justify-between mb-6">
-                        <div>
-                            <h2 class="text-3xl font-bold text-gray-900 mb-2">${service.name}</h2>
-                            <p class="text-gray-600">${service.category}</p>
-                        </div>
-                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-3xl">×</button>
-                    </div>
-                    
-                    <!-- 24-Hour Metrics -->
-                    <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
-                        <h3 class="text-xl font-bold text-gray-900 mb-4">📊 24-Hour Performance</h3>
-                        <div class="grid grid-cols-3 gap-4">
-                            <div class="bg-white rounded-lg p-4 border-2 border-green-200">
-                                <div class="text-xs text-gray-600 mb-1">Min Latency</div>
-                                <div class="text-2xl font-bold text-green-600">${service.latency.min}ms</div>
-                                <div class="text-xs text-gray-500 mt-1">Best response</div>
-                            </div>
-                            <div class="bg-white rounded-lg p-4 border-2 border-blue-200">
-                                <div class="text-xs text-gray-600 mb-1">Current Latency</div>
-                                <div class="text-2xl font-bold text-blue-600">${service.latency.current}ms</div>
-                                <div class="text-xs text-gray-500 mt-1">Last 5 minutes</div>
-                            </div>
-                            <div class="bg-white rounded-lg p-4 border-2 border-red-200">
-                                <div class="text-xs text-gray-600 mb-1">Max Latency</div>
-                                <div class="text-2xl font-bold text-red-600">${service.latency.max}ms</div>
-                                <div class="text-xs text-gray-500 mt-1">Peak response</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Request & Error Stats -->
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-blue-50 rounded-xl p-4">
-                            <div class="text-sm text-gray-600 mb-2">Total Requests (24h)</div>
-                            <div class="text-4xl font-bold text-blue-600">${service.requests.total24h}</div>
-                            <div class="text-xs text-gray-500 mt-2">Current: ${service.requests.current} in last 5 min</div>
-                        </div>
-                        <div class="bg-${service.errors.total24h > 0 ? 'red' : 'green'}-50 rounded-xl p-4">
-                            <div class="text-sm text-gray-600 mb-2">Total Errors (24h)</div>
-                            <div class="text-4xl font-bold text-${service.errors.total24h > 0 ? 'red' : 'green'}-600">${service.errors.total24h}</div>
-                            <div class="text-xs text-gray-500 mt-2">Error Rate: ${service.errors.rate}%</div>
-                        </div>
-                    </div>
-
-                    <!-- Thresholds -->
-                    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6">
-                        <h4 class="font-bold text-yellow-900 mb-3">⚙️ Industry-Standard Thresholds</h4>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
+            document.getElementById('servicesContainer').innerHTML = `
+                <!-- Dish Backend Block -->
+                <div class="block-card block-dish mb-8 slide-in">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center gap-4">
+                            <div class="text-6xl">🔐</div>
                             <div>
-                                <div class="font-semibold text-yellow-800 mb-2">Latency Limits:</div>
-                                <div class="space-y-1 text-yellow-700">
-                                    <div class="flex justify-between"><span>⚠️ Warning:</span><span class="font-mono font-bold">${threshold.latencyWarning}ms</span></div>
-                                    <div class="flex justify-between"><span>🔴 Critical:</span><span class="font-mono font-bold">${threshold.latencyCritical}ms</span></div>
-                                    <div class="flex justify-between"><span>📍 Current:</span><span class="font-mono font-bold ${service.latency.current > threshold.latencyWarning ? 'text-red-600' : 'text-green-600'}">${service.latency.current}ms</span></div>
-                                </div>
+                                <h2 class="text-4xl font-800 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">
+                                    Dish Backend
+                                </h2>
+                                <p class="text-slate-400">Core authentication & user services</p>
                             </div>
-                            <div>
-                                <div class="font-semibold text-yellow-800 mb-2">Error Rate Limits:</div>
-                                <div class="space-y-1 text-yellow-700">
-                                    <div class="flex justify-between"><span>⚠️ Warning:</span><span class="font-mono font-bold">${threshold.errorRateWarning}%</span></div>
-                                    <div class="flex justify-between"><span>🔴 Critical:</span><span class="font-mono font-bold">${threshold.errorRateCritical}%</span></div>
-                                    <div class="flex justify-between"><span>📍 Current:</span><span class="font-mono font-bold ${parseFloat(service.errors.rate) > threshold.errorRateWarning ? 'text-red-600' : 'text-green-600'}">${service.errors.rate}%</span></div>
-                                </div>
+                        </div>
+                        <div class="glass-card p-6 text-right">
+                            <div class="flex items-center gap-3 justify-end mb-3">
+                                <div class="status-dot status-${backendHealthy === backend.length ? 'healthy' : 'warning'} pulse"></div>
+                                <span class="stat-number font-700 text-3xl">${backendHealthy}/${backend.length}</span>
+                            </div>
+                            <div class="category-badge badge-dish">
+                                ${backendTotal.toLocaleString()} Requests
                             </div>
                         </div>
                     </div>
-
-                    <!-- CloudWatch Logs -->
-                    <div class="bg-gray-50 rounded-xl p-6 mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-xl font-bold text-gray-900">📋 Recent Logs</h3>
-                            <button onclick="refreshLogs('${serviceId}')" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                                🔄 Refresh
-                            </button>
-                        </div>
-                        <div id="logs-container" class="bg-white rounded-lg p-4 max-h-96 overflow-y-auto border">
-                            <div class="flex items-center justify-center p-8">
-                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                <span class="ml-3">Loading logs...</span>
-                            </div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-2">Log Group: ${service.logGroup}</div>
+                    <div class="grid grid-cols-3 gap-6">
+                        ${backend.map(([id, s]) => renderCard(id, s)).join('')}
                     </div>
-
-                    <button onclick="closeModal()" class="w-full px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 font-semibold">Close</button>
                 </div>
-            `;
-            
-            document.getElementById('serviceModal').classList.remove('hidden');
-            
-            const logsHtml = await fetchLogs(service.logGroup, 20);
-            document.getElementById('logs-container').innerHTML = logsHtml;
-        }
 
-        async function refreshLogs(serviceId) {
-            const service = window.allServices[serviceId];
-            const container = document.getElementById('logs-container');
-            container.innerHTML = '<div class="flex items-center justify-center p-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span class="ml-3">Refreshing...</span></div>';
-            const logsHtml = await fetchLogs(service.logGroup, 20);
-            container.innerHTML = logsHtml;
-        }
-
-        function closeModal() {
-            document.getElementById('serviceModal').classList.add('hidden');
-        }
-
-        document.getElementById('serviceModal').addEventListener('click', function(e) {
-            if (e.target === this) closeModal();
-        });
-
-        function render(services) {
-            window.allServices = services;
-            const hasData = Object.values(services).some(s => s.hasData);
-            
-            const dishBackend = Object.entries(services).filter(([id, s]) => s.category === 'Dish Backend');
-            const contentPartners = Object.entries(services).filter(([id, s]) => s.category === 'Content Partners');
-            
-            const totalServices = Object.keys(services).length;
-            const healthyCount = Object.values(services).filter(s => s.status === 'healthy').length;
-            const warningCount = Object.values(services).filter(s => s.status === 'warning').length;
-            const downCount = Object.values(services).filter(s => s.status === 'down').length;
-            
-            const now = new Date();
-            
-            document.getElementById('app').innerHTML = `
-                <div class="max-w-7xl mx-auto">
-                    <!-- Header -->
-                    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6 text-white">
-                        <div class="flex items-center justify-between mb-4">
+                <!-- Content Partners Block -->
+                <div class="block-card block-partners slide-in">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center gap-4">
+                            <div class="text-6xl">🎬</div>
                             <div>
-                                <h1 class="text-3xl font-bold">📺 VZY OTT Platform Monitor</h1>
-                                <p class="text-blue-100 mt-1">24-Hour Performance Metrics • Region: ap-south-1</p>
-                                ${hasData 
-                                    ? '<p class="text-green-300 text-sm mt-2 font-semibold">✓ Connected to CloudWatch - Showing 24h Data</p>'
-                                    : '<p class="text-yellow-300 text-sm mt-2">⚠ No metrics found</p>'
-                                }
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm text-blue-100 mb-2">Last updated: ${now.toLocaleTimeString()}</div>
-                                <button onclick="location.reload()" class="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold">
-                                    🔄 Refresh
-                                </button>
+                                <h2 class="text-4xl font-800 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                                    Content Partners
+                                </h2>
+                                <p class="text-slate-400">OTT platform integrations</p>
                             </div>
                         </div>
-
-                        <!-- Stats -->
-                        <div class="grid grid-cols-4 gap-4">
-                            <div class="bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur">
-                                <div class="text-3xl font-bold">${totalServices}</div>
-                                <div class="text-sm text-blue-100">Total Services</div>
+                        <div class="glass-card p-6 text-right">
+                            <div class="flex items-center gap-3 justify-end mb-3">
+                                <div class="status-dot status-${partnersHealthy === partners.length ? 'healthy' : 'warning'} pulse"></div>
+                                <span class="stat-number font-700 text-3xl">${partnersHealthy}/${partners.length}</span>
                             </div>
-                            <div class="bg-green-500 bg-opacity-30 rounded-lg p-4 backdrop-blur">
-                                <div class="text-3xl font-bold">${healthyCount}</div>
-                                <div class="text-sm text-blue-100">Healthy</div>
-                            </div>
-                            <div class="bg-yellow-500 bg-opacity-30 rounded-lg p-4 backdrop-blur">
-                                <div class="text-3xl font-bold">${warningCount}</div>
-                                <div class="text-sm text-blue-100">Warning</div>
-                            </div>
-                            <div class="bg-red-500 bg-opacity-30 rounded-lg p-4 backdrop-blur">
-                                <div class="text-3xl font-bold">${downCount}</div>
-                                <div class="text-sm text-blue-100">Down</div>
+                            <div class="category-badge badge-partners">
+                                ${partnersTotal.toLocaleString()} Requests
                             </div>
                         </div>
                     </div>
-
-                    <!-- Dish Backend -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
-                        <h2 class="text-xl font-bold mb-4">🔐 Dish Backend (${dishBackend.length} services)</h2>
-                        <div class="grid grid-cols-3 gap-4">
-                            ${dishBackend.map(([id, s]) => renderServiceCard(id, s)).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Content Partners -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
-                        <h2 class="text-xl font-bold mb-4">🎬 Content Partners (${contentPartners.length} services)</h2>
-                        <div class="grid grid-cols-4 gap-4">
-                            ${contentPartners.map(([id, s]) => renderServiceCard(id, s)).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Legend -->
-                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                        <h3 class="font-semibold text-blue-900 mb-3">📖 Threshold Guide</h3>
-                        <div class="grid grid-cols-2 gap-4 text-sm text-blue-800">
-                            <div>
-                                <strong>Dish Backend (Strict):</strong>
-                                <ul class="mt-2 space-y-1 text-xs">
-                                    <li>⚠️ Latency Warning: 500ms</li>
-                                    <li>🔴 Latency Critical: 1000ms</li>
-                                    <li>⚠️ Error Warning: 0.5%</li>
-                                    <li>🔴 Error Critical: 1%</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <strong>Content Partners (Balanced):</strong>
-                                <ul class="mt-2 space-y-1 text-xs">
-                                    <li>⚠️ Latency Warning: 2000ms</li>
-                                    <li>🔴 Latency Critical: 5000ms</li>
-                                    <li>⚠️ Error Warning: 1%</li>
-                                    <li>🔴 Error Critical: 5%</li>
-                                </ul>
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-4 gap-6">
+                        ${partners.map(([id, s]) => renderCard(id, s)).join('')}
                     </div>
                 </div>
             `;
         }
 
-        function renderServiceCard(id, s) {
-            const color = s.status === 'healthy' ? 'green' : s.status === 'warning' ? 'orange' : s.status === 'unknown' ? 'gray' : 'red';
-            const icon = s.status === 'healthy' ? '✓' : s.status === 'warning' ? '⚠' : s.status === 'unknown' ? '?' : '✗';
-            const threshold = s.thresholds;
+        function renderCard(id, s) {
+            const status = s.avgLatency > s.threshold || s.errors > 0 ? 'warning' : s.invocations > 0 ? 'healthy' : 'unknown';
+            const statusColor = status === 'healthy' ? 'emerald' : status === 'warning' ? 'amber' : 'slate';
             
             return `
-                <div onclick="showDetails('${id}')" class="bg-${color}-50 border-2 border-${color}-200 rounded-xl p-4 hover:shadow-xl transition cursor-pointer">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-bold text-gray-800 text-sm">${s.name}</h3>
-                        <span class="text-${color}-600 text-2xl">${icon}</span>
+                <div class="service-card p-6 cursor-pointer" onclick="showModal('${id}')">
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-700 mb-2">${s.name}</h3>
+                            <div class="flex items-center gap-2">
+                                <div class="status-dot status-${status}"></div>
+                                <span class="text-${statusColor}-400 text-sm font-600 uppercase tracking-wide">${status}</span>
+                            </div>
+                        </div>
+                        <div class="text-4xl">${status === 'healthy' ? '✓' : status === 'warning' ? '⚠' : '○'}</div>
                     </div>
                     
-                    <!-- Min/Current/Max -->
-                    <div class="bg-white rounded-lg p-3 mb-3 border border-${color}-100">
-                        <div class="text-xs text-gray-600 mb-2 font-semibold">Latency (24h)</div>
-                        <div class="grid grid-cols-3 gap-2 text-xs">
-                            <div class="text-center">
-                                <div class="text-green-600 font-bold">${s.latency.min}ms</div>
-                                <div class="text-gray-500">Min</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-blue-600 font-bold text-base">${s.latency.current}ms</div>
-                                <div class="text-gray-500">Now</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-red-600 font-bold">${s.latency.max}ms</div>
-                                <div class="text-gray-500">Max</div>
-                            </div>
+                    <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+                        <div class="bg-emerald-500 bg-opacity-10 rounded-lg p-3 border border-emerald-500 border-opacity-20">
+                            <div class="text-emerald-400 text-xs mb-1 font-600">MIN</div>
+                            <div class="stat-number font-700 text-lg">${s.minLatency}ms</div>
+                        </div>
+                        <div class="bg-blue-500 bg-opacity-10 rounded-lg p-3 border border-blue-500 border-opacity-20">
+                            <div class="text-blue-400 text-xs mb-1 font-600">AVG</div>
+                            <div class="stat-number font-700 text-lg text-blue-400">${s.avgLatency}ms</div>
+                        </div>
+                        <div class="bg-red-500 bg-opacity-10 rounded-lg p-3 border border-red-500 border-opacity-20">
+                            <div class="text-red-400 text-xs mb-1 font-600">MAX</div>
+                            <div class="stat-number font-700 text-lg">${s.maxLatency}ms</div>
                         </div>
                     </div>
 
-                    <!-- Stats -->
-                    <div class="space-y-2 text-xs text-gray-700">
-                        <div class="flex justify-between">
-                            <span>24h Requests:</span>
-                            <span class="font-mono font-bold">${s.requests.total24h}</span>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between text-slate-400">
+                            <span>Requests:</span>
+                            <span class="stat-number font-700 text-white">${s.invocations.toLocaleString()}</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between text-slate-400">
                             <span>Errors:</span>
-                            <span class="font-mono font-bold text-${s.errors.total24h > 0 ? 'red' : 'green'}-600">${s.errors.total24h} (${s.errors.rate}%)</span>
+                            <span class="stat-number font-700 text-${s.errors > 0 ? 'red' : 'emerald'}-400">${s.errors}</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between text-slate-400">
                             <span>Threshold:</span>
-                            <span class="font-mono font-bold text-xs">${threshold.latencyWarning}ms</span>
+                            <span class="stat-number font-700 text-slate-300">${s.threshold}ms</span>
                         </div>
                     </div>
-                    
-                    <div class="mt-3 pt-3 border-t border-${color}-200 text-${color}-700 text-xs font-semibold text-center">
+
+                    <div class="mt-4 pt-4 border-t border-slate-700 text-center text-sm text-blue-400 font-600 hover:text-blue-300 transition">
                         Click for details & logs →
                     </div>
                 </div>
             `;
         }
 
-        async function init() {
-            try {
-                updateStatus('Testing AWS connection...');
-                await cloudwatch.listMetrics({ Namespace: 'VZY/OTT' }).promise();
-                console.log('✓ Connected to CloudWatch');
-                
-                updateStatus('Fetching 24-hour metrics...');
-                const services = await fetch24HourMetrics();
-                
-                updateStatus('Rendering dashboard...');
-                render(services);
-                
-                console.log('✓ Dashboard loaded with 24h data');
-                
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('app').innerHTML = `
-                    <div class="max-w-2xl mx-auto mt-12 bg-red-50 border rounded-xl p-8">
-                        <h2 class="text-2xl font-bold text-red-900 mb-4">⚠ Connection Error</h2>
-                        <p class="text-red-800 mb-4">${error.message}</p>
-                        <button onclick="location.reload()" class="px-6 py-3 bg-red-600 text-white rounded-lg">Retry</button>
+        function showModal(id) {
+            const s = currentData[id];
+            document.getElementById('modalContent').innerHTML = `
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-3xl font-800 mb-2">${s.name}</h2>
+                        <p class="text-slate-400">${s.category} · Threshold: ${s.threshold}ms</p>
                     </div>
-                `;
-            }
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-white text-4xl leading-none">&times;</button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-800 rounded-xl p-6">
+                        <div class="text-slate-400 text-sm mb-2">Total Requests</div>
+                        <div class="stat-number text-4xl font-700">${s.invocations.toLocaleString()}</div>
+                    </div>
+                    <div class="bg-slate-800 rounded-xl p-6">
+                        <div class="text-slate-400 text-sm mb-2">Average Latency</div>
+                        <div class="stat-number text-4xl font-700 text-blue-400">${s.avgLatency}ms</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-xl p-6">
+                    <h3 class="font-700 text-xl mb-4">Performance Range</h3>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <div class="text-emerald-400 text-sm mb-2">Minimum</div>
+                            <div class="stat-number text-3xl font-700">${s.minLatency}ms</div>
+                        </div>
+                        <div>
+                            <div class="text-blue-400 text-sm mb-2">Average</div>
+                            <div class="stat-number text-3xl font-700">${s.avgLatency}ms</div>
+                        </div>
+                        <div>
+                            <div class="text-red-400 text-sm mb-2">Maximum</div>
+                            <div class="stat-number text-3xl font-700">${s.maxLatency}ms</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal').classList.remove('hidden');
         }
 
-        window.addEventListener('load', init);
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function exportCSV() {
+            if (!currentData) return;
+            let csv = 'Service,Category,Requests,Avg Latency,Min Latency,Max Latency,Errors,Threshold\n';
+            Object.values(currentData).forEach(s => {
+                csv += `${s.name},${s.category},${s.invocations},${s.avgLatency},${s.minLatency},${s.maxLatency},${s.errors},${s.threshold}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vzy-monitoring-${document.getElementById('startDate').value}-to-${document.getElementById('endDate').value}.csv`;
+            a.click();
+        }
+
+        window.addEventListener('load', () => {
+            applyQuickSelect();
+            setTimeout(() => loadData(), 300);
+        });
     </script>
 </body>
 </html>
