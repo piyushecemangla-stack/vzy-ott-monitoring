@@ -151,7 +151,9 @@
             padding: 4px 12px;
             border-radius: 8px;
             margin-right: 8px;
+            margin-bottom: 4px;
             font-weight: 600;
+            font-size: 0.75rem;
         }
 
         .metric-normal { background: rgba(16, 185, 129, 0.15); color: #10b981; }
@@ -177,6 +179,78 @@
         .refresh-indicator.show {
             opacity: 1;
         }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                font-size: 14px;
+            }
+
+            .glass-card {
+                border-radius: 16px;
+                padding: 1rem !important;
+            }
+
+            .block-card {
+                padding: 1rem;
+                border-radius: 16px;
+            }
+
+            h1 {
+                font-size: 2rem !important;
+            }
+
+            h2 {
+                font-size: 1.5rem !important;
+            }
+
+            h3 {
+                font-size: 1.25rem !important;
+            }
+
+            .partner-logo {
+                width: 60px;
+                height: 60px;
+            }
+
+            .stat-number.text-4xl {
+                font-size: 1.875rem;
+            }
+
+            .stat-number.text-3xl {
+                font-size: 1.5rem;
+            }
+
+            .stat-number.text-2xl {
+                font-size: 1.25rem;
+            }
+
+            .service-card {
+                border-radius: 12px;
+            }
+
+            .refresh-indicator {
+                top: 10px;
+                right: 10px;
+                padding: 8px 16px;
+                font-size: 0.75rem;
+            }
+
+            .log-metric {
+                font-size: 0.625rem;
+                padding: 3px 8px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .text-6xl {
+                font-size: 2.5rem !important;
+            }
+
+            .text-5xl {
+                font-size: 2rem !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -195,44 +269,44 @@
     <div class="min-h-screen p-6">
         <div class="max-w-[1600px] mx-auto">
             <!-- Header -->
-            <div class="glass-card p-8 mb-8 slide-in">
-                <div class="flex items-start justify-between mb-6">
-                    <div>
-                        <h1 class="text-5xl font-800 mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <div class="glass-card p-4 md:p-8 mb-6 md:mb-8 slide-in">
+                <div class="flex flex-col md:flex-row items-start md:items-start justify-between mb-6 gap-4">
+                    <div class="w-full md:w-auto">
+                        <h1 class="text-3xl md:text-5xl font-800 mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                             VZY OTT Monitor
                         </h1>
-                        <p class="text-slate-400 text-lg">Real-time performance analytics · Region ap-south-1</p>
-                        <div class="flex items-center gap-4 mt-3">
+                        <p class="text-slate-400 text-sm md:text-lg">Real-time performance analytics · Region ap-south-1</p>
+                        <div class="flex flex-wrap items-center gap-3 md:gap-4 mt-3">
                             <div class="flex items-center gap-2">
                                 <div class="status-dot status-healthy pulse"></div>
-                                <span class="text-emerald-400 text-sm font-600">Live</span>
+                                <span class="text-emerald-400 text-xs md:text-sm font-600">Live</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="status-dot status-healthy"></div>
-                                <span class="text-slate-400 text-sm">Auto-refresh: 2 min</span>
+                                <span class="text-slate-400 text-xs md:text-sm">Auto-refresh: 2 min</span>
                             </div>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="stat-number text-slate-400 text-sm mb-2">Last updated</div>
-                        <div class="stat-number text-2xl font-700" id="lastUpdate">--:--:--</div>
+                    <div class="text-left md:text-right w-full md:w-auto">
+                        <div class="stat-number text-slate-400 text-xs md:text-sm mb-2">Last updated</div>
+                        <div class="stat-number text-xl md:text-2xl font-700" id="lastUpdate">--:--:--</div>
                         <div class="stat-number text-slate-500 text-xs mt-1">Next refresh: <span id="nextRefresh">--</span>s</div>
                     </div>
                 </div>
 
                 <!-- Date Range Controls -->
-                <div class="grid grid-cols-5 gap-4 mt-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mt-6">
                     <div>
-                        <label class="text-slate-400 text-sm mb-2 block">Start Date</label>
-                        <input type="date" id="startDate" class="glass-card px-4 py-2 w-full rounded-lg text-white">
+                        <label class="text-slate-400 text-xs md:text-sm mb-2 block">Start Date</label>
+                        <input type="date" id="startDate" class="glass-card px-3 md:px-4 py-2 w-full rounded-lg text-white text-sm">
                     </div>
                     <div>
-                        <label class="text-slate-400 text-sm mb-2 block">End Date</label>
-                        <input type="date" id="endDate" class="glass-card px-4 py-2 w-full rounded-lg text-white">
+                        <label class="text-slate-400 text-xs md:text-sm mb-2 block">End Date</label>
+                        <input type="date" id="endDate" class="glass-card px-3 md:px-4 py-2 w-full rounded-lg text-white text-sm">
                     </div>
                     <div>
-                        <label class="text-slate-400 text-sm mb-2 block">Quick Select</label>
-                        <select id="quickSelect" class="glass-card px-4 py-2 w-full rounded-lg text-white" onchange="applyQuickSelect()">
+                        <label class="text-slate-400 text-xs md:text-sm mb-2 block">Quick Select</label>
+                        <select id="quickSelect" class="glass-card px-3 md:px-4 py-2 w-full rounded-lg text-white text-sm" onchange="applyQuickSelect()">
                             <option value="24h" selected>Last 24 Hours</option>
                             <option value="7d">Last 7 Days</option>
                             <option value="14d">Last 14 Days</option>
@@ -240,40 +314,40 @@
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <button onclick="loadData()" class="glass-card px-6 py-2 w-full rounded-lg text-white font-600 hover:bg-blue-500 transition">
-                            🔄 Refresh Now
+                        <button onclick="loadData()" class="glass-card px-4 md:px-6 py-2 w-full rounded-lg text-white text-sm font-600 hover:bg-blue-500 transition">
+                            🔄 Refresh
                         </button>
                     </div>
                     <div class="flex items-end">
-                        <button onclick="exportCSV()" class="glass-card px-6 py-2 w-full rounded-lg text-white font-600 hover:bg-green-500 transition">
-                            📥 Export CSV
+                        <button onclick="exportCSV()" class="glass-card px-4 md:px-6 py-2 w-full rounded-lg text-white text-sm font-600 hover:bg-green-500 transition">
+                            📥 Export
                         </button>
                     </div>
                 </div>
             </div>
 
             <!-- Summary Stats -->
-            <div class="grid grid-cols-4 gap-6 mb-8">
-                <div class="glass-card p-6 slide-in" style="animation-delay: 0.1s">
-                    <div class="text-slate-400 text-sm mb-2">Total Requests</div>
-                    <div class="stat-number text-4xl font-700" id="totalRequests">--</div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+                <div class="glass-card p-4 md:p-6 slide-in" style="animation-delay: 0.1s">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2">Total Requests</div>
+                    <div class="stat-number text-2xl md:text-4xl font-700" id="totalRequests">--</div>
                     <div class="text-slate-500 text-xs mt-2 stat-number" id="dateRange">Loading...</div>
                 </div>
-                <div class="glass-card p-6 slide-in" style="animation-delay: 0.2s">
-                    <div class="text-slate-400 text-sm mb-2">Avg Latency</div>
-                    <div class="stat-number text-4xl font-700 text-emerald-400" id="avgLatency">--ms</div>
+                <div class="glass-card p-4 md:p-6 slide-in" style="animation-delay: 0.2s">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2">Avg Latency</div>
+                    <div class="stat-number text-2xl md:text-4xl font-700 text-emerald-400" id="avgLatency">--ms</div>
                     <div class="text-slate-500 text-xs mt-2">Target: &lt;500ms</div>
                 </div>
-                <div class="glass-card p-6 slide-in" style="animation-delay: 0.3s">
-                    <div class="text-slate-400 text-sm mb-2">Total Errors</div>
-                    <div class="stat-number text-4xl font-700 text-red-400" id="totalErrors">--</div>
+                <div class="glass-card p-4 md:p-6 slide-in" style="animation-delay: 0.3s">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2">Total Errors</div>
+                    <div class="stat-number text-2xl md:text-4xl font-700 text-red-400" id="totalErrors">--</div>
                     <div class="stat-number text-slate-500 text-xs mt-2">Rate: <span id="errorRate">--%</span></div>
                 </div>
-                <div class="glass-card p-6 slide-in" style="animation-delay: 0.4s">
-                    <div class="text-slate-400 text-sm mb-2">System Health</div>
-                    <div class="text-4xl font-700">
+                <div class="glass-card p-4 md:p-6 slide-in" style="animation-delay: 0.4s">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2">System Health</div>
+                    <div class="text-2xl md:text-4xl font-700">
                         <span id="healthyCount" class="text-emerald-400">--</span>
-                        <span class="text-slate-600 text-2xl">/</span>
+                        <span class="text-slate-600 text-xl md:text-2xl">/</span>
                         <span id="totalServices" class="text-slate-400">7</span>
                     </div>
                     <div class="text-slate-500 text-xs mt-2">Services Operational</div>
@@ -543,8 +617,8 @@
                         </div>
                     </div>
 
-                    <div class="mt-4 pt-4 border-t border-slate-700 text-center text-sm text-blue-400 font-600 hover:text-blue-300 transition">
-                        View Logs & Timeline →
+                    <div class="mt-4 pt-4 border-t border-slate-700 text-center text-sm ${s.invocations > 0 ? 'text-blue-400' : 'text-slate-400'} font-600 hover:text-blue-300 transition">
+                        ${s.invocations > 0 ? 'View Logs & Timeline →' : 'View Details & Logs →'}
                     </div>
                 </div>
             `;
@@ -553,8 +627,22 @@
         async function showModal(id) {
             const s = currentData[id];
             
-            // Fetch recent logs
-            let logsHtml = '<div class="text-center text-slate-400 p-4">Loading logs...</div>';
+            // Show modal immediately
+            document.getElementById('modal').classList.remove('hidden');
+            
+            // No data message
+            const noDataMessage = s.invocations === 0 ? `
+                <div class="bg-yellow-900 bg-opacity-20 border border-yellow-500 border-opacity-30 rounded-xl p-6 mb-6">
+                    <h3 class="font-700 text-xl mb-2 text-yellow-400">ℹ️ No Activity Detected</h3>
+                    <p class="text-slate-300">This service has not received any requests in the selected time range.</p>
+                    <p class="text-slate-400 text-sm mt-2">This could be normal if:</p>
+                    <ul class="text-slate-400 text-sm mt-2 ml-6 list-disc">
+                        <li>The service is only called during specific user actions</li>
+                        <li>It's a low-traffic service</li>
+                        <li>You're viewing a time period with no user activity</li>
+                    </ul>
+                </div>
+            ` : '';
             
             document.getElementById('modalContent').innerHTML = `
                 <div class="flex justify-between items-start mb-6">
@@ -564,23 +652,37 @@
                     </div>
                     <button onclick="closeModal()" class="text-slate-400 hover:text-white text-4xl leading-none">&times;</button>
                 </div>
+
+                ${noDataMessage}
                 
                 <div class="grid grid-cols-3 gap-4 mb-6">
-                    <div class="bg-slate-800 rounded-xl p-6 text-center">
+                    <div class="bg-slate-800 rounded-xl p-6 text-center cursor-pointer hover:bg-slate-700 transition" onclick="showRequestTimeline('${id}')">
                         <div class="text-slate-400 text-sm mb-2">Total Requests</div>
-                        <div class="stat-number text-4xl font-700">${s.invocations.toLocaleString()}</div>
+                        <div class="stat-number text-4xl font-700 ${s.invocations === 0 ? 'text-slate-500' : 'text-blue-400 hover:text-blue-300'}">${s.invocations.toLocaleString()}</div>
+                        ${s.invocations > 0 ? '<div class="text-xs text-blue-400 mt-2">Click for timeline →</div>' : ''}
                     </div>
                     <div class="bg-slate-800 rounded-xl p-6 text-center">
                         <div class="text-slate-400 text-sm mb-2">Average Latency</div>
-                        <div class="stat-number text-4xl font-700 text-blue-400">${s.avgLatency}ms</div>
+                        <div class="stat-number text-4xl font-700 ${s.invocations === 0 ? 'text-slate-500' : 'text-blue-400'}">${s.avgLatency === 0 ? 'N/A' : s.avgLatency + 'ms'}</div>
                     </div>
                     <div class="bg-slate-800 rounded-xl p-6 text-center">
                         <div class="text-slate-400 text-sm mb-2">Threshold Violations</div>
-                        <div class="stat-number text-4xl font-700 text-${s.violations.length > 0 ? 'red' : 'emerald'}-400">${s.violations.length}</div>
+                        <div class="stat-number text-4xl font-700 ${s.violations && s.violations.length > 0 ? 'text-red-400' : 'text-emerald-400'}">${s.violations ? s.violations.length : 0}</div>
                     </div>
                 </div>
 
-                ${s.violations.length > 0 ? `
+                <!-- Request Timeline Section (Hidden by Default) -->
+                <div id="requestTimeline" class="hidden bg-slate-900 rounded-xl p-6 mb-6 border border-blue-500 border-opacity-30">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-700 text-xl text-blue-400">📅 Request Timeline</h3>
+                        <button onclick="hideRequestTimeline()" class="text-slate-400 hover:text-white text-sm">✕ Close</button>
+                    </div>
+                    <div id="timelineContent" class="max-h-96 overflow-y-auto">
+                        <div class="text-center text-slate-400 p-4">Loading request timeline...</div>
+                    </div>
+                </div>
+
+                ${s.violations && s.violations.length > 0 ? `
                 <div class="bg-red-900 bg-opacity-20 border border-red-500 border-opacity-30 rounded-xl p-6 mb-6">
                     <h3 class="font-700 text-xl mb-4 text-red-400">⚠️ Threshold Violations Detected</h3>
                     <div class="space-y-2">
@@ -595,6 +697,7 @@
                 </div>
                 ` : ''}
 
+                ${s.invocations > 0 ? `
                 <div class="bg-slate-800 rounded-xl p-6 mb-6">
                     <h3 class="font-700 text-xl mb-4">📊 Performance Timeline</h3>
                     <div class="grid grid-cols-3 gap-4 text-center">
@@ -612,20 +715,174 @@
                         </div>
                     </div>
                 </div>
+                ` : ''}
 
                 <div class="bg-slate-800 rounded-xl p-6">
-                    <h3 class="font-700 text-xl mb-4">📋 Recent CloudWatch Logs</h3>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-700 text-xl">📋 Recent CloudWatch Logs</h3>
+                        <button onclick="refreshModalLogs('${id}')" class="text-blue-400 hover:text-blue-300 text-sm font-600">
+                            🔄 Refresh Logs
+                        </button>
+                    </div>
                     <div id="logsContainer" class="max-h-96 overflow-y-auto">
-                        ${logsHtml}
+                        <div class="text-center text-slate-400 p-4">Loading logs from CloudWatch...</div>
+                    </div>
+                    <div class="text-slate-500 text-xs mt-3">
+                        Log Group: ${s.logGroup}
                     </div>
                 </div>
             `;
             
-            document.getElementById('modal').classList.remove('hidden');
-            
             // Fetch and render logs
             const actualLogs = await fetchLogs(s.logGroup, s.threshold);
             document.getElementById('logsContainer').innerHTML = actualLogs;
+        }
+
+        async function refreshModalLogs(id) {
+            const s = currentData[id];
+            document.getElementById('logsContainer').innerHTML = '<div class="text-center text-slate-400 p-4">Refreshing logs...</div>';
+            const logs = await fetchLogs(s.logGroup, s.threshold);
+            document.getElementById('logsContainer').innerHTML = logs;
+        }
+
+        async function showRequestTimeline(id) {
+            const s = currentData[id];
+            const timelineDiv = document.getElementById('requestTimeline');
+            const contentDiv = document.getElementById('timelineContent');
+            
+            // Show the timeline section
+            timelineDiv.classList.remove('hidden');
+            contentDiv.innerHTML = '<div class="text-center text-slate-400 p-4">Loading detailed timeline...</div>';
+            
+            // Fetch detailed timeline
+            try {
+                const events = await logs.filterLogEvents({
+                    logGroupName: s.logGroup,
+                    startTime: new Date(document.getElementById('startDate').value).getTime(),
+                    endTime: new Date(document.getElementById('endDate').value + 'T23:59:59').getTime(),
+                    filterPattern: 'REPORT'
+                }).promise();
+
+                const reports = events.events || [];
+                
+                if (reports.length === 0) {
+                    contentDiv.innerHTML = '<div class="text-slate-400 text-center p-4">No requests found in this time range</div>';
+                    return;
+                }
+
+                // Group by hour
+                const groupedByHour = {};
+                reports.forEach(event => {
+                    const date = new Date(event.timestamp);
+                    const hourKey = date.toLocaleDateString() + ' ' + date.getHours() + ':00';
+                    
+                    if (!groupedByHour[hourKey]) {
+                        groupedByHour[hourKey] = [];
+                    }
+                    
+                    const match = event.message.match(/Duration: ([\d.]+) ms/);
+                    if (match) {
+                        groupedByHour[hourKey].push({
+                            time: event.timestamp,
+                            latency: parseFloat(match[1])
+                        });
+                    }
+                });
+
+                // Render timeline
+                let html = '<div class="space-y-4">';
+                
+                Object.keys(groupedByHour).sort((a, b) => {
+                    return new Date(groupedByHour[b][0].time) - new Date(groupedByHour[a][0].time);
+                }).forEach(hourKey => {
+                    const requests = groupedByHour[hourKey];
+                    const avgLatency = Math.round(requests.reduce((sum, r) => sum + r.latency, 0) / requests.length);
+                    const maxLatency = Math.round(Math.max(...requests.map(r => r.latency)));
+                    const violations = requests.filter(r => r.latency > s.threshold).length;
+                    
+                    html += `
+                        <div class="bg-slate-800 rounded-lg p-4 border ${violations > 0 ? 'border-red-500 border-opacity-30' : 'border-slate-700'}">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="font-700 text-white">📅 ${hourKey}</div>
+                                <div class="flex items-center gap-3">
+                                    <span class="stat-number text-blue-400 font-600">${requests.length} requests</span>
+                                    ${violations > 0 ? `<span class="stat-number text-red-400 font-600">⚠️ ${violations} violations</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-6 text-sm">
+                                <div>
+                                    <span class="text-slate-400">Avg:</span>
+                                    <span class="stat-number font-700 text-blue-400">${avgLatency}ms</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-400">Max:</span>
+                                    <span class="stat-number font-700 text-red-400">${maxLatency}ms</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-400">Threshold:</span>
+                                    <span class="stat-number font-700 text-slate-300">${s.threshold}ms</span>
+                                </div>
+                            </div>
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-blue-400 text-sm hover:text-blue-300">Show all ${requests.length} requests in this hour</summary>
+                                <div class="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                                    ${requests.sort((a, b) => b.time - a.time).map(req => {
+                                        const time = new Date(req.time);
+                                        const exceeded = req.latency > s.threshold;
+                                        return `
+                                            <div class="flex justify-between text-xs ${exceeded ? 'text-red-400' : 'text-slate-400'} bg-slate-900 p-2 rounded">
+                                                <span>${time.toLocaleTimeString()}</span>
+                                                <span class="stat-number font-700">${Math.round(req.latency)}ms ${exceeded ? '⚠️' : ''}</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                // Add summary at top
+                const totalRequests = reports.length;
+                const allLatencies = reports.map(e => {
+                    const match = e.message.match(/Duration: ([\d.]+) ms/);
+                    return match ? parseFloat(match[1]) : 0;
+                }).filter(l => l > 0);
+                
+                const summary = `
+                    <div class="bg-blue-900 bg-opacity-20 border border-blue-500 border-opacity-30 rounded-xl p-4 mb-4">
+                        <div class="grid grid-cols-4 gap-4 text-center">
+                            <div>
+                                <div class="text-blue-400 text-sm mb-1">Total Requests</div>
+                                <div class="stat-number text-2xl font-700">${totalRequests}</div>
+                            </div>
+                            <div>
+                                <div class="text-emerald-400 text-sm mb-1">Fastest</div>
+                                <div class="stat-number text-2xl font-700">${Math.round(Math.min(...allLatencies))}ms</div>
+                            </div>
+                            <div>
+                                <div class="text-red-400 text-sm mb-1">Slowest</div>
+                                <div class="stat-number text-2xl font-700">${Math.round(Math.max(...allLatencies))}ms</div>
+                            </div>
+                            <div>
+                                <div class="text-slate-400 text-sm mb-1">Time Range</div>
+                                <div class="text-sm font-700">${Object.keys(groupedByHour).length} hours</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                contentDiv.innerHTML = summary + html;
+                
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="text-red-400 p-4">Error loading timeline: ${error.message}</div>`;
+            }
+        }
+
+        function hideRequestTimeline() {
+            document.getElementById('requestTimeline').classList.add('hidden');
         }
 
         async function fetchLogs(logGroup, threshold) {
